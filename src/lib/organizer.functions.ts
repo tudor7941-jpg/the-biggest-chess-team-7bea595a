@@ -1546,46 +1546,95 @@ export const askStarGPT = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const apiKey = process.env.GEMINI_API_KEY;
 
-    const systemInstruction = `You are StarGPT 🌟, a direct and highly accurate AI assistant.
+    const systemInstruction = `You are StarGPT 🌟, a friendly, knowledgeable general-purpose AI assistant that lives inside the "Chess Team Organizer" app.
 
-CRITICAL ANSWERING RULES:
-1. Provide a STRICT, CONCISE, and CONCRETE direct answer to the user's specific question.
-2. NEVER give multiple alternative answers, options lists, or varied possibilities (e.g., do NOT say "You could do A, B, or C", "Here are different options", "Alternatively..."). Provide ONE single, definitive, best, concrete answer immediately.
-3. You MUST answer ANY question asked by the user — whether it is related to our Chess Team Organizer platform or ANY other topic (general knowledge, science, math, general chess, coding, history, everyday questions, image analysis, etc.). Do NOT refuse or avoid questions that are not about the site.
-4. If an image is provided, analyze the image thoroughly and answer the user's prompt based on the image content.
-5. If the question IS about this platform, use the context below. If it is NOT about the platform, answer the user's question directly and accurately without forcing platform context into your reply.
-6. Keep your response direct, precise, and accurate without fluff, unnecessary disclaimers, or conversational padding.
+HOW TO ANSWER:
+1. Answer ANY question on ANY topic - general knowledge, science, math, coding, history, chess, homework, advice, everyday questions, image analysis, casual conversation. Never refuse a question just because it is not about this app.
+2. Answer naturally and conversationally, like ChatGPT would: clear, helpful, well structured, with short paragraphs, lists or steps when useful, and markdown-style emphasis when it helps.
+3. Be accurate. If you truly do not know something, say so briefly instead of inventing facts.
+4. Match the user's language (answer in Romanian if they write in Romanian).
+5. If an image is attached, analyse it carefully and answer based on what you see.
+6. Use the platform knowledge below ONLY when the question is about this app.
 
-Platform Knowledge (Use ONLY if the question is about this site):
-- HOW TO GET STARS: Daily Chest (5-25 stars + 5% Golden Star drop rate), Daily Quiz (3 trivia questions, +5 stars each), Daily Marathon (10 challenges, +20 stars & +50 XP), Achievements, Shop.
-- GOLDEN STARS (🌟): Rare currency used for exclusive shop items, custom master titles, and top leaderboard standing. Convertible from 10 regular stars in the Shop.
-- XP & LEVELS: Level up from Level 1 (Pawn) to Level 20 (Grandmaster / Legend) via quizzes, marathons, and daily activity.
-- COMMUNITY CHAT & NEWS: Live chat with team members and official owner announcements.
-- SUGEST UPDATES TAB: Tab where users can submit bug reports, feature updates, or site improvement ideas directly to the Owner.
-- LICHESS STUDY LINKS: Available in the 'How to get stars?' tab.`;
+Platform knowledge:
+- HOW TO GET STARS: Daily Chest (5-25 stars + 5% Golden Star drop rate), Daily Quiz (3 questions, +5 stars each), Daily Marathon (10 challenges, +20 stars & +50 XP), Achievements, Shop.
+- GOLDEN STARS (🌟): rare currency for exclusive shop items and custom titles. Convertible from 10 regular stars in the Shop.
+- XP & LEVELS: Level 1 (Pawn) up to Level 20 (Grandmaster / Legend) via quizzes, marathons and daily activity.
+- NEWS: owner announcements, each with its own review chat where players share opinions about that announcement.
+- GLOBAL CHAT: live chat with the whole team.
+- SUGGEST UPDATES TAB: send bug reports, feature ideas and improvements to the Owner.
+- LICHESS STUDY LINKS: in the 'How to get stars?' tab.`;
 
+    // 1) Preferred path: Lovable AI Gateway (no user key needed)
+    const lovableKey = process.env.LOVABLE_API_KEY;
+    if (lovableKey) {
+      try {
+        type Part = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+        const messages: Array<{ role: string; content: string | Part[] }> = [
+          { role: "system", content: systemInstruction },
+        ];
+        for (const msg of (data.history ?? []).slice(-8)) {
+          messages.push({ role: msg.role === "user" ? "user" : "assistant", content: msg.text });
+        }
+        const userContent: Part[] = [
+          { type: "text", text: data.prompt || "Please analyze this image." },
+        ];
+        if (data.image) {
+          userContent.push({
+            type: "image_url",
+            image_url: { url: `data:${data.image.mimeType};base64,${data.image.data}` },
+          });
+        }
+        messages.push({ role: "user", content: userContent });
+
+        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Lovable-API-Key": lovableKey,
+            "X-Lovable-AIG-SDK": "fetch",
+          },
+          body: JSON.stringify({ model: "google/gemini-3.6-flash", messages }),
+        });
+
+        if (res.ok) {
+          const json = (await res.json()) as {
+            choices?: Array<{ message?: { content?: string } }>;
+          };
+          const reply = json.choices?.[0]?.message?.content?.trim();
+          if (reply) return { reply };
+        } else if (res.status === 429) {
+          return {
+            reply:
+              "⏳ Too many requests right now. Please wait a few seconds and ask me again.",
+          };
+        } else if (res.status === 402) {
+          return {
+            reply:
+              "💳 The AI credits for this workspace are used up. Please top them up to keep chatting with me.",
+          };
+        } else {
+          console.error("Lovable AI gateway error", res.status, await res.text());
+        }
+      } catch (e) {
+        console.error("Lovable AI gateway call failed:", e);
+      }
+    }
+
+    // 2) Fallback: user-provided Gemini key
     if (apiKey) {
       try {
-        const ai = new GoogleGenAI({
-          apiKey,
-          httpOptions: {
-            headers: {
-              "User-Agent": "aistudio-build",
-            },
-          },
-        });
+        const ai = new GoogleGenAI({ apiKey });
         const contents: Array<{
           role: string;
           parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }>;
         }> = [];
 
-        if (data.history && data.history.length > 0) {
-          for (const msg of data.history.slice(-6)) {
-            contents.push({
-              role: msg.role === "user" ? "user" : "model",
-              parts: [{ text: msg.text }],
-            });
-          }
+        for (const msg of (data.history ?? []).slice(-6)) {
+          contents.push({
+            role: msg.role === "user" ? "user" : "model",
+            parts: [{ text: msg.text }],
+          });
         }
 
         const userParts: Array<{
@@ -1596,37 +1645,25 @@ Platform Knowledge (Use ONLY if the question is about this site):
             text: `${systemInstruction}\n\nUser Question: ${data.prompt || "Please analyze this image."}`,
           },
         ];
-
         if (data.image) {
           userParts.push({
-            inlineData: {
-              mimeType: data.image.mimeType,
-              data: data.image.data,
-            },
+            inlineData: { mimeType: data.image.mimeType, data: data.image.data },
           });
         }
-
-        contents.push({
-          role: "user",
-          parts: userParts,
-        });
+        contents.push({ role: "user", parts: userParts });
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-2.5-flash",
           contents,
-          config: {
-            temperature: 0.1,
-          },
         });
 
         const reply = response.text?.trim();
-        if (reply) {
-          return { reply };
-        }
+        if (reply) return { reply };
       } catch (e) {
         console.error("Gemini API call error in StarGPT:", e);
       }
     }
+
 
     // Smart fallback if API key is missing or errored
     const q = data.prompt.toLowerCase();
