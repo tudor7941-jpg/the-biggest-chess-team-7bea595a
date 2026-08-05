@@ -47,8 +47,8 @@ export type UserRecord = {
 
 const mockUsers: UserRecord[] = [];
 
-const mockPurchaseRequests: Record<string, unknown>[] = [];
-const mockShopItems: Record<string, unknown>[] = [];
+const mockPurchaseRequests: Record<string, any>[] = [];
+const mockShopItems: Record<string, any>[] = [];
 const mockDailyClaims: Record<string, unknown>[] = [];
 const mockQuizCompletions: Record<string, unknown>[] = [];
 const mockMarathonCompletions: Record<string, unknown>[] = [];
@@ -517,7 +517,7 @@ const shopItemInputSchema = z.object({
   kind: z.enum(["title", "chest", "chance", "golden_convert", "custom"]).default("custom"),
   rarity: z.enum(["common", "rare", "epic", "legendary"]).nullable().optional(),
   is_daily: z.boolean().default(false),
-  reward_meta: z.record(z.string(), z.unknown()).default({}),
+  reward_meta: z.record(z.string(), z.any()).default({}),
 });
 
 export const listShopItems = createServerFn({ method: "GET" }).handler(async () => {
