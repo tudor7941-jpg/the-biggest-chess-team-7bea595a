@@ -1,24 +1,79 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { LoginScreen } from "@/components/LoginScreen";
+import { OwnerPanel } from "@/components/OwnerPanel";
+import { UserPanel } from "@/components/UserPanel";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Chess Team Organizer" },
+      {
+        name: "description",
+        content:
+          "Organize your chess team: track stars, golden stars, quit-counts, XP, achievements, daily chests, quizzes and a public leaderboard.",
+      },
+      { property: "og:title", content: "Chess Team Organizer" },
+      {
+        property: "og:description",
+        content:
+          "Organize your chess team with stars, golden stars, achievements, and a leaderboard.",
+      },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
+type Session =
+  { role: "owner"; password: string } | { role: "user"; username: string; token: string } | null;
+
+const KEY = "cto_session_v2";
+
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
+  const [session, setSession] = useState<Session>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) setSession(JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
+    // Clean up old-format session that lacked the token
+    try {
+      localStorage.removeItem("cto_session_v1");
+    } catch {
+      /* ignore */
+    }
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (session) localStorage.setItem(KEY, JSON.stringify(session));
+    else localStorage.removeItem(KEY);
+  }, [session, ready]);
+
+  if (!ready) return null;
+
+  if (!session) {
+    return (
+      <LoginScreen
+        onOwnerLogin={(password) => setSession({ role: "owner", password })}
+        onUserLogin={(username, token) => setSession({ role: "user", username, token })}
       />
-    </div>
+    );
+  }
+
+  if (session.role === "owner") {
+    return <OwnerPanel password={session.password} onLogout={() => setSession(null)} />;
+  }
+  return (
+    <UserPanel
+      username={session.username}
+      token={session.token}
+      onLogout={() => setSession(null)}
+    />
   );
 }
