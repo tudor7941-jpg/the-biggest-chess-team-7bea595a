@@ -283,13 +283,13 @@ export function UserPanel({
   return (
     <div className="relative min-h-screen">
       <AnimatedBackground />
-      <div className="relative mx-auto max-w-5xl px-4 py-6">
-        <header className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <UserIcon className="h-6 w-6 text-primary" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">{me.username}</h1>
+      <div className="relative mx-auto max-w-7xl px-4 py-6">
+        <header className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <UserIcon className="h-6 w-6 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate text-2xl font-bold">{me.username}</h1>
                 <span className="flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-0.5 text-xs font-bold text-orange-500 shadow-xs">
                   <Flame className="h-3.5 w-3.5 fill-orange-500 text-orange-500 animate-pulse" />
                   {me.login_streak || 1} Day Streak
@@ -300,13 +300,19 @@ export function UserPanel({
           </div>
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-accent"
+            className="flex shrink-0 items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-accent"
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>
         </header>
 
-        <nav className="mb-6 flex flex-wrap gap-2">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <nav className="rounded-2xl border bg-card/80 p-2 shadow-lg backdrop-blur lg:sticky lg:top-6 lg:w-60 lg:shrink-0">
+          <p className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            Menu
+          </p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
+
           <NavBtn
             a={tab === "profile"}
             onClick={() => setTab("profile")}
