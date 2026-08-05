@@ -409,9 +409,12 @@ export function UserPanel({
           >
             Global Chat
           </NavBtn>
+          </div>
         </nav>
 
+        <main className="min-w-0 flex-1 space-y-4">
         {tab === "chat" && <CommunityChat username={username} token={token} />}
+
         {tab === "stargpt" && <StarGPTChat username={username} token={token} />}
         {tab === "suggestions" && (
           <SuggestionsTab
