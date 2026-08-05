@@ -1579,7 +1579,10 @@ function NewsTab({
             </span>
           </div>
         </article>
+
+        <NewsReviewChat newsId={selectedPost.id} username={username} token={token} />
       </div>
+
     );
   }
 
