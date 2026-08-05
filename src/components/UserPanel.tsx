@@ -554,16 +554,22 @@ function NavBtn({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-        a ? "bg-primary text-primary-foreground" : "bg-card text-foreground hover:bg-accent"
+      aria-current={a ? "page" : undefined}
+      className={`relative flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all ${
+        a
+          ? "bg-primary text-primary-foreground shadow-md"
+          : "text-foreground hover:bg-accent hover:translate-x-0.5"
       }`}
     >
-      {icon} {children}
-      {badge && <span className="dot-green-badge absolute -right-1.5 -top-1.5">!</span>}
+      <span className="shrink-0">{icon}</span>
+      <span className="truncate">{children}</span>
+      {badge && <span className="dot-green-badge absolute right-1.5 top-1.5">!</span>}
     </button>
   );
 }
+
 
 function ProfileTab({ me }: { me: User }) {
   const streak = me.login_streak || 1;
