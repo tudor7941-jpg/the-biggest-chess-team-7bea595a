@@ -531,7 +531,10 @@ export function UserPanel({
         {tab === "leaderboard" && <LeaderboardTab users={everyone} me={me} />}
         {tab === "news" && <NewsTab posts={news} username={username} token={token} />}
         {tab === "howto" && <HowToGetStarsTab />}
+        </main>
+        </div>
       </div>
+
     </div>
   );
 }
