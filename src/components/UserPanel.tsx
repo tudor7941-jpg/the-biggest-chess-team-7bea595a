@@ -23,6 +23,8 @@ import {
 } from "@/lib/organizer.functions";
 import { AnimatedBackground } from "./AnimatedBackground";
 import { CommunityChat } from "./CommunityChat";
+import { NewsReviewChat } from "./NewsReviewChat";
+
 import { StarGPTChat } from "./StarGPTChat";
 import {
   STAR_ITEMS,
