@@ -49,10 +49,10 @@ const mockUsers: UserRecord[] = [];
 
 const mockPurchaseRequests: Record<string, any>[] = [];
 const mockShopItems: Record<string, any>[] = [];
-const mockDailyClaims: Record<string, unknown>[] = [];
-const mockQuizCompletions: Record<string, unknown>[] = [];
-const mockMarathonCompletions: Record<string, unknown>[] = [];
-const mockNewsPosts: Record<string, unknown>[] = [
+const mockDailyClaims: Record<string, any>[] = [];
+const mockQuizCompletions: Record<string, any>[] = [];
+const mockMarathonCompletions: Record<string, any>[] = [];
+const mockNewsPosts: Record<string, any>[] = [
   {
     id: "news-1",
     title: "Welcome to Chess Team Organizer!",
@@ -80,18 +80,18 @@ function getYesterdayDateKey(): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function touchUserStreak(user: UserRecord | Record<string, unknown>, sb: unknown) {
+async function touchUserStreak(user: UserRecord | Record<string, any>, sb: unknown) {
   if (!user) return user;
   const today = getTodayDateKey();
   const yesterday = getYesterdayDateKey();
 
-  const lastDate = ((user as Record<string, unknown>).last_login_date as string) || "";
-  const rawStreak = (user as Record<string, unknown>).login_streak;
+  const lastDate = ((user as Record<string, any>).last_login_date as string) || "";
+  const rawStreak = (user as Record<string, any>).login_streak;
   const currentStreak = typeof rawStreak === "number" && rawStreak > 0 ? rawStreak : 0;
 
   if (lastDate === today) {
-    (user as Record<string, unknown>).login_streak = currentStreak || 1;
-    (user as Record<string, unknown>).last_login_date = today;
+    (user as Record<string, any>).login_streak = currentStreak || 1;
+    (user as Record<string, any>).last_login_date = today;
     return user;
   }
 
@@ -102,8 +102,8 @@ async function touchUserStreak(user: UserRecord | Record<string, unknown>, sb: u
     nextStreak = 1;
   }
 
-  (user as Record<string, unknown>).login_streak = nextStreak;
-  (user as Record<string, unknown>).last_login_date = today;
+  (user as Record<string, any>).login_streak = nextStreak;
+  (user as Record<string, any>).last_login_date = today;
 
   if (sb) {
     try {
@@ -120,7 +120,7 @@ async function touchUserStreak(user: UserRecord | Record<string, unknown>, sb: u
           last_login_date: today,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", (user as Record<string, unknown>).id);
+        .eq("id", (user as Record<string, any>).id);
     } catch {
       /* ignore */
     }
@@ -237,7 +237,7 @@ export const listUsers = createServerFn({ method: "GET" }).handler(async () => {
     try {
       const { data, error } = await sb.from("app_users").select("*").order("username");
       if (!error && data) {
-        return data.map((u: Record<string, unknown>) => ({
+        return data.map((u: Record<string, any>) => ({
           ...u,
           login_streak: (u.login_streak as number) || 1,
         }));
@@ -263,7 +263,7 @@ export const listUsersForOwner = createServerFn({ method: "POST" })
       try {
         const { data: rows, error } = await sb.from("app_users").select("*").order("username");
         if (!error && rows) {
-          return rows.map((u: Record<string, unknown>) => ({
+          return rows.map((u: Record<string, any>) => ({
             ...u,
             login_streak: (u.login_streak as number) || 1,
           }));
@@ -603,7 +603,7 @@ async function findAnyItem(key: string): Promise<ShopItem | null> {
           description: data.description,
           kind: data.kind as ShopItem["kind"],
           rarity: (data.rarity ?? null) as ShopItem["rarity"],
-          rewardMeta: (data.reward_meta ?? {}) as Record<string, unknown>,
+          rewardMeta: (data.reward_meta ?? {}) as Record<string, any>,
         };
       }
     } catch {
@@ -620,7 +620,7 @@ async function findAnyItem(key: string): Promise<ShopItem | null> {
     description: item.description,
     kind: item.kind as ShopItem["kind"],
     rarity: (item.rarity ?? null) as ShopItem["rarity"],
-    rewardMeta: (item.reward_meta ?? {}) as Record<string, unknown>,
+    rewardMeta: (item.reward_meta ?? {}) as Record<string, any>,
   };
 }
 
@@ -733,7 +733,7 @@ export const decidePurchase = createServerFn({ method: "POST" })
             } else if (req.item_key === "chance_2") {
               newGaveUp = Math.max(0, newGaveUp - 2);
             } else if (item?.kind === "chest") {
-              const meta = (item.rewardMeta ?? {}) as Record<string, unknown>;
+              const meta = (item.rewardMeta ?? {}) as Record<string, any>;
               const min = Math.max(0, Math.floor((meta.minStars as number) ?? 1));
               const max = Math.max(min, Math.floor((meta.maxStars as number) ?? min + 5));
               const rolledStars = min + Math.floor(Math.random() * (max - min + 1));
@@ -810,7 +810,7 @@ export const decidePurchase = createServerFn({ method: "POST" })
         } else if (req.item_key === "chance_2") {
           newGaveUp = Math.max(0, newGaveUp - 2);
         } else if (item?.kind === "chest") {
-          const meta = (item.rewardMeta ?? {}) as Record<string, unknown>;
+          const meta = (item.rewardMeta ?? {}) as Record<string, any>;
           const min = Math.max(0, Math.floor((meta.minStars as number) ?? 1));
           const max = Math.max(min, Math.floor((meta.maxStars as number) ?? min + 5));
           const rolledStars = min + Math.floor(Math.random() * (max - min + 1));
