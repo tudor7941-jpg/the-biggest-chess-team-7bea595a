@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   getMyProfile,
@@ -23,6 +23,8 @@ import {
 } from "@/lib/organizer.functions";
 import { AnimatedBackground } from "./AnimatedBackground";
 import { CommunityChat } from "./CommunityChat";
+import { NewsReviewChat } from "./NewsReviewChat";
+
 import { StarGPTChat } from "./StarGPTChat";
 import {
   STAR_ITEMS,
@@ -281,13 +283,13 @@ export function UserPanel({
   return (
     <div className="relative min-h-screen">
       <AnimatedBackground />
-      <div className="relative mx-auto max-w-5xl px-4 py-6">
-        <header className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <UserIcon className="h-6 w-6 text-primary" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">{me.username}</h1>
+      <div className="relative mx-auto max-w-7xl px-4 py-6">
+        <header className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <UserIcon className="h-6 w-6 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate text-2xl font-bold">{me.username}</h1>
                 <span className="flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-0.5 text-xs font-bold text-orange-500 shadow-xs">
                   <Flame className="h-3.5 w-3.5 fill-orange-500 text-orange-500 animate-pulse" />
                   {me.login_streak || 1} Day Streak
@@ -298,13 +300,19 @@ export function UserPanel({
           </div>
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-accent"
+            className="flex shrink-0 items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-accent"
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>
         </header>
 
-        <nav className="mb-6 flex flex-wrap gap-2">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <nav className="rounded-2xl border bg-card/80 p-2 shadow-lg backdrop-blur lg:sticky lg:top-6 lg:w-60 lg:shrink-0">
+          <p className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            Menu
+          </p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
+
           <NavBtn
             a={tab === "profile"}
             onClick={() => setTab("profile")}
@@ -401,9 +409,12 @@ export function UserPanel({
           >
             Global Chat
           </NavBtn>
+          </div>
         </nav>
 
+        <main className="min-w-0 flex-1 space-y-4">
         {tab === "chat" && <CommunityChat username={username} token={token} />}
+
         {tab === "stargpt" && <StarGPTChat username={username} token={token} />}
         {tab === "suggestions" && (
           <SuggestionsTab
@@ -520,7 +531,10 @@ export function UserPanel({
         {tab === "leaderboard" && <LeaderboardTab users={everyone} me={me} />}
         {tab === "news" && <NewsTab posts={news} username={username} token={token} />}
         {tab === "howto" && <HowToGetStarsTab />}
+        </main>
+        </div>
       </div>
+
     </div>
   );
 }
@@ -540,16 +554,22 @@ function NavBtn({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-        a ? "bg-primary text-primary-foreground" : "bg-card text-foreground hover:bg-accent"
+      aria-current={a ? "page" : undefined}
+      className={`relative flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all ${
+        a
+          ? "bg-primary text-primary-foreground shadow-md"
+          : "text-foreground hover:bg-accent hover:translate-x-0.5"
       }`}
     >
-      {icon} {children}
-      {badge && <span className="dot-green-badge absolute -right-1.5 -top-1.5">!</span>}
+      <span className="shrink-0">{icon}</span>
+      <span className="truncate">{children}</span>
+      {badge && <span className="dot-green-badge absolute right-1.5 top-1.5">!</span>}
     </button>
   );
 }
+
 
 function ProfileTab({ me }: { me: User }) {
   const streak = me.login_streak || 1;
@@ -900,9 +920,19 @@ function ChestTab({
   const [reward, setReward] = useState<{ stars: number; golden: number; streak?: number } | null>(
     null,
   );
-  const [justOpenedInSession, setJustOpenedInSession] = useState(false);
+  const justOpenedRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aliveRef = useRef(true);
 
   const isAlreadyClaimed = Boolean(claim && typeof claim === "object" && "stars_awarded" in claim);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (isAlreadyClaimed) {
@@ -910,28 +940,37 @@ function ChestTab({
       setReward(
         (prev) => prev ?? { stars: c.stars_awarded, golden: c.golden_awarded, streak: userStreak },
       );
-      if (!justOpenedInSession) {
-        setState("claimed");
-      }
+      // Don't interrupt the opening animation that is running right now.
+      if (!justOpenedRef.current) setState("claimed");
     } else {
+      justOpenedRef.current = false;
       setState("idle");
       setReward(null);
-      setJustOpenedInSession(false);
     }
-  }, [claim, isAlreadyClaimed, justOpenedInSession, userStreak]);
+  }, [claim, isAlreadyClaimed, userStreak]);
 
   async function handle() {
-    if (isAlreadyClaimed || state === "shaking" || state === "open" || state === "claimed") return;
+    if (isAlreadyClaimed || state !== "idle") return;
     playChestFanfare();
+    justOpenedRef.current = true;
     setState("shaking");
-    setTimeout(async () => {
-      const r = await onClaim();
-      if (r) {
-        setReward(r);
-        setJustOpenedInSession(true);
+
+    let result: { stars: number; golden: number; streak?: number } | null = null;
+    try {
+      result = await onClaim();
+    } catch {
+      result = null;
+    }
+
+    // Let the shake animation play out fully (1.6s) before revealing.
+    timerRef.current = setTimeout(() => {
+      if (!aliveRef.current) return;
+      if (result) {
+        setReward(result);
         setState("open");
       } else {
-        setState("idle");
+        justOpenedRef.current = false;
+        setState(isAlreadyClaimed ? "claimed" : "idle");
       }
     }, 1600);
   }
@@ -944,6 +983,7 @@ function ChestTab({
         : state === "open"
           ? "chest-open"
           : "chest-claimed";
+
 
   return (
     <div className="rounded-2xl border bg-card p-8 md:p-12 text-center shadow-2xl relative overflow-hidden">
@@ -1579,7 +1619,10 @@ function NewsTab({
             </span>
           </div>
         </article>
+
+        <NewsReviewChat newsId={selectedPost.id} username={username} token={token} />
       </div>
+
     );
   }
 
@@ -1638,8 +1681,8 @@ function NewsTab({
         ))}
       </div>
 
-      {/* Community Chat section */}
-      <CommunityChat username={username} token={token} />
+
+
     </div>
   );
 }

@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { LoginScreen } from "@/components/LoginScreen";
 import { OwnerPanel } from "@/components/OwnerPanel";
 import { UserPanel } from "@/components/UserPanel";
+import { MusicToggle } from "@/components/MusicToggle";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -59,21 +61,33 @@ function Index() {
 
   if (!session) {
     return (
-      <LoginScreen
-        onOwnerLogin={(password) => setSession({ role: "owner", password })}
-        onUserLogin={(username, token) => setSession({ role: "user", username, token })}
-      />
+      <>
+        <LoginScreen
+          onOwnerLogin={(password) => setSession({ role: "owner", password })}
+          onUserLogin={(username, token) => setSession({ role: "user", username, token })}
+        />
+        <MusicToggle />
+      </>
     );
   }
 
   if (session.role === "owner") {
-    return <OwnerPanel password={session.password} onLogout={() => setSession(null)} />;
+    return (
+      <>
+        <OwnerPanel password={session.password} onLogout={() => setSession(null)} />
+        <MusicToggle />
+      </>
+    );
   }
   return (
-    <UserPanel
-      username={session.username}
-      token={session.token}
-      onLogout={() => setSession(null)}
-    />
+    <>
+      <UserPanel
+        username={session.username}
+        token={session.token}
+        onLogout={() => setSession(null)}
+      />
+      <MusicToggle />
+    </>
   );
 }
+

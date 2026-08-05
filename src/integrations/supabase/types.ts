@@ -71,6 +71,33 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_messages: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          is_owner: boolean
+          message: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_owner?: boolean
+          message?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_owner?: boolean
+          message?: string
+          username?: string
+        }
+        Relationships: []
+      }
       daily_chest_claims: {
         Row: {
           claim_date: string
@@ -155,6 +182,36 @@ export type Database = {
           pinned?: boolean
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      news_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          is_owner: boolean
+          message: string
+          news_id: string
+          rating: number | null
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_owner?: boolean
+          message: string
+          news_id: string
+          rating?: number | null
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_owner?: boolean
+          message?: string
+          news_id?: string
+          rating?: number | null
+          username?: string
         }
         Relationships: []
       }
@@ -260,6 +317,36 @@ export type Database = {
           rarity?: string | null
           reward_meta?: Json
           updated_at?: string
+        }
+        Relationships: []
+      }
+      suggestions: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          status: string
+          title: string
+          type: string
+          username: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          status?: string
+          title: string
+          type: string
+          username: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          status?: string
+          title?: string
+          type?: string
+          username?: string
         }
         Relationships: []
       }
