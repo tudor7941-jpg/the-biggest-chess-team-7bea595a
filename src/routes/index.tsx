@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { LoginScreen } from "@/components/LoginScreen";
 import { OwnerPanel } from "@/components/OwnerPanel";
 import { UserPanel } from "@/components/UserPanel";
+import { MusicToggle } from "@/components/MusicToggle";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
