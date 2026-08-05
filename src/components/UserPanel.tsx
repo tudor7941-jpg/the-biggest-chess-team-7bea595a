@@ -1638,8 +1638,8 @@ function NewsTab({
         ))}
       </div>
 
-      {/* Community Chat section */}
-      <CommunityChat username={username} token={token} />
+
+
     </div>
   );
 }
