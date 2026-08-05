@@ -920,9 +920,19 @@ function ChestTab({
   const [reward, setReward] = useState<{ stars: number; golden: number; streak?: number } | null>(
     null,
   );
-  const [justOpenedInSession, setJustOpenedInSession] = useState(false);
+  const justOpenedRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aliveRef = useRef(true);
 
   const isAlreadyClaimed = Boolean(claim && typeof claim === "object" && "stars_awarded" in claim);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (isAlreadyClaimed) {
@@ -930,28 +940,37 @@ function ChestTab({
       setReward(
         (prev) => prev ?? { stars: c.stars_awarded, golden: c.golden_awarded, streak: userStreak },
       );
-      if (!justOpenedInSession) {
-        setState("claimed");
-      }
+      // Don't interrupt the opening animation that is running right now.
+      if (!justOpenedRef.current) setState("claimed");
     } else {
+      justOpenedRef.current = false;
       setState("idle");
       setReward(null);
-      setJustOpenedInSession(false);
     }
-  }, [claim, isAlreadyClaimed, justOpenedInSession, userStreak]);
+  }, [claim, isAlreadyClaimed, userStreak]);
 
   async function handle() {
-    if (isAlreadyClaimed || state === "shaking" || state === "open" || state === "claimed") return;
+    if (isAlreadyClaimed || state !== "idle") return;
     playChestFanfare();
+    justOpenedRef.current = true;
     setState("shaking");
-    setTimeout(async () => {
-      const r = await onClaim();
-      if (r) {
-        setReward(r);
-        setJustOpenedInSession(true);
+
+    let result: { stars: number; golden: number; streak?: number } | null = null;
+    try {
+      result = await onClaim();
+    } catch {
+      result = null;
+    }
+
+    // Let the shake animation play out fully (1.6s) before revealing.
+    timerRef.current = setTimeout(() => {
+      if (!aliveRef.current) return;
+      if (result) {
+        setReward(result);
         setState("open");
       } else {
-        setState("idle");
+        justOpenedRef.current = false;
+        setState(isAlreadyClaimed ? "claimed" : "idle");
       }
     }, 1600);
   }
@@ -964,6 +983,7 @@ function ChestTab({
         : state === "open"
           ? "chest-open"
           : "chest-claimed";
+
 
   return (
     <div className="rounded-2xl border bg-card p-8 md:p-12 text-center shadow-2xl relative overflow-hidden">
