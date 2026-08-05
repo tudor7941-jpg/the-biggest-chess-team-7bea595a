@@ -1906,3 +1906,117 @@ export const deleteSuggestion = createServerFn({ method: "POST" })
     if (idx !== -1) mockSuggestions.splice(idx, 1);
     return { ok: true };
   });
+
+// ---------- News reviews (per-article discussion) ----------
+
+export type NewsReview = {
+  id: string;
+  news_id: string;
+  username: string;
+  is_owner: boolean;
+  message: string;
+  rating: number | null;
+  created_at: string;
+};
+
+const mockNewsReviews: NewsReview[] = [];
+
+export const listNewsReviews = createServerFn({ method: "POST" })
+  .inputValidator((d: { newsId: string }) =>
+    z.object({ newsId: z.string().trim().min(1) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const sb = await admin();
+    if (sb) {
+      try {
+        const { data: rows, error } = await sb
+          .from("news_reviews")
+          .select("id, news_id, username, is_owner, message, rating, created_at")
+          .eq("news_id", data.newsId)
+          .order("created_at", { ascending: true })
+          .limit(200);
+        if (!error && rows) return rows as unknown as NewsReview[];
+      } catch {
+        /* ignore */
+      }
+    }
+    return mockNewsReviews.filter((r) => r.news_id === data.newsId);
+  });
+
+export const sendNewsReview = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      newsId: string;
+      username?: string;
+      token?: string;
+      password?: string;
+      message: string;
+      rating?: number;
+    }) =>
+      z
+        .object({
+          newsId: z.string().trim().min(1),
+          username: z.string().optional(),
+          token: z.string().optional(),
+          password: z.string().optional(),
+          message: z.string().trim().min(1).max(2000),
+          rating: z.number().int().min(1).max(5).optional(),
+        })
+        .parse(d),
+  )
+  .handler(async ({ data }) => {
+    let senderName = "";
+    let isOwner = false;
+    if (data.password) {
+      assertOwner(data.password);
+      senderName = "Owner 👑";
+      isOwner = true;
+    } else if (data.username && data.token) {
+      const player = await assertPlayer(data.username, data.token);
+      senderName = player.username;
+    } else {
+      throw new Error("Not authorized");
+    }
+
+    const review: NewsReview = {
+      id: crypto.randomUUID(),
+      news_id: data.newsId,
+      username: senderName,
+      is_owner: isOwner,
+      message: data.message,
+      rating: data.rating ?? null,
+      created_at: new Date().toISOString(),
+    };
+
+    const sb = await admin();
+    if (sb) {
+      try {
+        const { error } = await sb.from("news_reviews").insert(review as never);
+        if (!error) return { ok: true, review };
+      } catch {
+        /* ignore */
+      }
+    }
+    mockNewsReviews.push(review);
+    return { ok: true, review };
+  });
+
+export const deleteNewsReview = createServerFn({ method: "POST" })
+  .inputValidator((d: { password: string; id: string }) =>
+    z.object({ password: z.string(), id: z.string() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    assertOwner(data.password);
+    const sb = await admin();
+    if (sb) {
+      try {
+        const { error } = await sb.from("news_reviews").delete().eq("id", data.id);
+        if (!error) return { ok: true };
+      } catch {
+        /* ignore */
+      }
+    }
+    const i = mockNewsReviews.findIndex((r) => r.id === data.id);
+    if (i !== -1) mockNewsReviews.splice(i, 1);
+    return { ok: true };
+  });
