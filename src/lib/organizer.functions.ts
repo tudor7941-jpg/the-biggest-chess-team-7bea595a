@@ -52,6 +52,7 @@ const mockShopItems: Record<string, any>[] = [];
 const mockDailyClaims: Record<string, any>[] = [];
 const mockQuizCompletions: Record<string, any>[] = [];
 const mockMarathonCompletions: Record<string, any>[] = [];
+const mockChestGrants: Record<string, any>[] = [];
 const mockNewsPosts: Record<string, any>[] = [
   {
     id: "news-1",
