@@ -811,27 +811,37 @@ export const decidePurchase = createServerFn({ method: "POST" })
         let newGaveUp = user.gave_up;
         let titles: string[] = user.titles || [];
 
-        if (req.currency === "stars") newStars = user.stars - req.cost;
-        else newGolden = user.golden_stars - req.cost;
-
         const item = await findAnyItem(req.item_key);
-        if (req.item_key === "golden_star") {
+
+        if (req.currency === "stars" && user.stars < req.cost)
+          throw new Error("Player no longer has enough stars for this item");
+        if (req.currency === "golden" && user.golden_stars < req.cost)
+          throw new Error("Player no longer has enough golden stars for this item");
+        if (item?.kind === "title" && titles.includes(req.item_label))
+          throw new Error("Player already owns this title");
+
+        if (req.currency === "stars") newStars = Math.max(0, user.stars - req.cost);
+        else newGolden = Math.max(0, user.golden_stars - req.cost);
+
+        if (item?.kind === "chest") {
+          mockChestGrants.push({
+            id: crypto.randomUUID(),
+            username: req.username,
+            item_key: req.item_key,
+            item_label: req.item_label,
+            reward_meta: (item.rewardMeta ?? {}) as Record<string, any>,
+            opened: false,
+            stars_awarded: 0,
+            golden_awarded: 0,
+            created_at: new Date().toISOString(),
+            opened_at: null,
+          });
+        } else if (req.item_key === "golden_star") {
           newGolden += 1;
         } else if (req.item_key === "chance_1") {
           newGaveUp = Math.max(0, newGaveUp - 1);
         } else if (req.item_key === "chance_2") {
           newGaveUp = Math.max(0, newGaveUp - 2);
-        } else if (item?.kind === "chest") {
-          const meta = (item.rewardMeta ?? {}) as Record<string, any>;
-          const min = Math.max(0, Math.floor((meta.minStars as number) ?? 1));
-          const max = Math.max(min, Math.floor((meta.maxStars as number) ?? min + 5));
-          const rolledStars = min + Math.floor(Math.random() * (max - min + 1));
-          let rolledGolden = Math.max(0, Math.floor((meta.guaranteedGolden as number) ?? 0));
-          if (typeof meta.goldenChance === "number" && Math.random() < meta.goldenChance)
-            rolledGolden += 1;
-          newStars += rolledStars;
-          newGolden += rolledGolden;
-          chestReward = { stars: rolledStars, golden: rolledGolden };
         } else if (item?.kind === "chance") {
           const remove = Math.max(1, Math.floor((item.rewardMeta?.removeGaveUp as number) ?? 1));
           newGaveUp = Math.max(0, newGaveUp - remove);
@@ -840,6 +850,7 @@ export const decidePurchase = createServerFn({ method: "POST" })
         } else if (!titles.includes(req.item_label)) {
           titles = [...titles, req.item_label];
         }
+
 
         user.stars = newStars;
         user.golden_stars = newGolden;
