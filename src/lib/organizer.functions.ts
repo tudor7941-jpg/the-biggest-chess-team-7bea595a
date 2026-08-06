@@ -1096,9 +1096,10 @@ export const submitMarathon = createServerFn({ method: "POST" })
     marathon.forEach((q, i) => {
       if (data.answers[i] === q.answer) correct++;
     });
-    const stars = correct;
-    const xpGain = correct * 25;
-    const perfectBonus = correct === marathon.length ? 100 : 0;
+    // Hard mode: marathon stars only every 4th correct answer.
+    const stars = Math.floor(correct / 4);
+    const xpGain = correct * 5;
+    const perfectBonus = correct === marathon.length ? 25 : 0;
     const totalXpGain = xpGain + perfectBonus;
 
     if (sb) {
