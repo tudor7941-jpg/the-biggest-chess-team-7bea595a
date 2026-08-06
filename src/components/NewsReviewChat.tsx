@@ -82,6 +82,10 @@ export function NewsReviewChat({
         ).toFixed(1)
       : null;
 
+  const myRating =
+    reviews.find((r) => !r.is_owner && r.username === username && r.rating)?.rating ?? null;
+  const alreadyRated = myRating !== null;
+
   return (
     <section className="rounded-3xl border bg-card p-5 sm:p-6 shadow-lg space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
