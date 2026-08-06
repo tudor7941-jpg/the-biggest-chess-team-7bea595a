@@ -229,6 +229,7 @@ export function UserPanel({
     marathonStatus,
     fetchNews,
     fetchMySugg,
+    fetchChestGrants,
     onLogout,
   ]);
 
