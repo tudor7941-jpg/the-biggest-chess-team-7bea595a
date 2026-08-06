@@ -866,6 +866,123 @@ export const decidePurchase = createServerFn({ method: "POST" })
     return { ok: true, chestReward };
   });
 
+// ---------- Purchased chest grants (claimed by the player) ----------
+
+export type ChestGrant = {
+  id: string;
+  username: string;
+  item_key: string;
+  item_label: string;
+  reward_meta: Record<string, any>;
+  opened: boolean;
+  stars_awarded: number;
+  golden_awarded: number;
+  created_at: string;
+  opened_at: string | null;
+};
+
+export const listChestGrants = createServerFn({ method: "POST" })
+  .inputValidator((d: { username: string; token: string }) =>
+    z.object({ username: z.string(), token: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    await assertPlayer(data.username, data.token);
+    const sb = await admin();
+    if (sb) {
+      try {
+        const { data: rows, error } = await sb
+          .from("chest_grants")
+          .select("*")
+          .eq("username", data.username)
+          .order("created_at", { ascending: false });
+        if (!error && rows) return rows as unknown as ChestGrant[];
+      } catch {
+        /* ignore */
+      }
+    }
+    return mockChestGrants.filter((g) => g.username === data.username) as ChestGrant[];
+  });
+
+export const openChestGrant = createServerFn({ method: "POST" })
+  .inputValidator((d: { username: string; token: string; id: string }) =>
+    z.object({ username: z.string(), token: z.string().uuid(), id: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const user = await assertPlayer(data.username, data.token);
+
+    function roll(meta: Record<string, any>) {
+      const min = Math.max(0, Math.floor((meta.minStars as number) ?? 1));
+      const max = Math.max(min, Math.floor((meta.maxStars as number) ?? min + 5));
+      const stars = min + Math.floor(Math.random() * (max - min + 1));
+      let golden = Math.max(0, Math.floor((meta.guaranteedGolden as number) ?? 0));
+      if (typeof meta.goldenChance === "number" && Math.random() < meta.goldenChance) golden += 1;
+      return { stars, golden };
+    }
+
+    const sb = await admin();
+    if (sb) {
+      try {
+        const { data: grant, error } = await sb
+          .from("chest_grants")
+          .select("*")
+          .eq("id", data.id)
+          .eq("username", data.username)
+          .maybeSingle();
+        if (error || !grant) throw new Error("Chest not found");
+        if (grant.opened) throw new Error("Chest already opened");
+
+        const reward = roll((grant.reward_meta ?? {}) as Record<string, any>);
+        const newStars = user.stars + reward.stars;
+        const newGolden = user.golden_stars + reward.golden;
+
+        const { error: upErr } = await sb
+          .from("app_users")
+          .update({
+            stars: newStars,
+            golden_stars: newGolden,
+            xp: totalXp(newStars, user.xp_bonus || 0),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("username", data.username);
+        if (upErr) throw upErr;
+
+        await sb
+          .from("chest_grants")
+          .update({
+            opened: true,
+            stars_awarded: reward.stars,
+            golden_awarded: reward.golden,
+            opened_at: new Date().toISOString(),
+          })
+          .eq("id", data.id);
+
+        return reward;
+      } catch (err: unknown) {
+        const msg =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "";
+        if (msg.includes("Chest")) throw err;
+      }
+    }
+
+    const grant = mockChestGrants.find(
+      (g) => g.id === data.id && g.username === data.username,
+    );
+    if (!grant) throw new Error("Chest not found");
+    if (grant.opened) throw new Error("Chest already opened");
+    const reward = roll(grant.reward_meta ?? {});
+    grant.opened = true;
+    grant.stars_awarded = reward.stars;
+    grant.golden_awarded = reward.golden;
+    grant.opened_at = new Date().toISOString();
+    user.stars += reward.stars;
+    user.golden_stars += reward.golden;
+    user.xp = totalXp(user.stars, user.xp_bonus || 0);
+    user.updated_at = new Date().toISOString();
+    return reward;
+  });
+
 // ---------- Daily chest ----------
 
 export const claimDailyChest = createServerFn({ method: "POST" })
