@@ -52,6 +52,7 @@ const mockShopItems: Record<string, any>[] = [];
 const mockDailyClaims: Record<string, any>[] = [];
 const mockQuizCompletions: Record<string, any>[] = [];
 const mockMarathonCompletions: Record<string, any>[] = [];
+const mockChestGrants: Record<string, any>[] = [];
 const mockNewsPosts: Record<string, any>[] = [
   {
     id: "news-1",
@@ -637,6 +638,8 @@ export const submitPurchase = createServerFn({ method: "POST" })
     if (item.currency === "stars" && user.stars < item.cost) throw new Error("Not enough stars");
     if (item.currency === "golden" && user.golden_stars < item.cost)
       throw new Error("Not enough golden stars");
+    if (item.kind === "title" && (user.titles || []).includes(item.label))
+      throw new Error("You already own this title");
 
     const sb = await admin();
     if (sb) {
@@ -722,27 +725,33 @@ export const decidePurchase = createServerFn({ method: "POST" })
             let newGaveUp = user.gave_up;
             let titles: string[] = user.titles || [];
 
-            if (req.currency === "stars") newStars = user.stars - req.cost;
-            else newGolden = user.golden_stars - req.cost;
-
             const item = await findAnyItem(req.item_key);
-            if (req.item_key === "golden_star") {
+
+            // Make sure the purchase is still valid at approval time.
+            if (req.currency === "stars" && user.stars < req.cost)
+              throw new Error("Player no longer has enough stars for this item");
+            if (req.currency === "golden" && user.golden_stars < req.cost)
+              throw new Error("Player no longer has enough golden stars for this item");
+            if (item?.kind === "title" && titles.includes(req.item_label))
+              throw new Error("Player already owns this title");
+
+            if (req.currency === "stars") newStars = Math.max(0, user.stars - req.cost);
+            else newGolden = Math.max(0, user.golden_stars - req.cost);
+
+            if (item?.kind === "chest") {
+              // Chests are not opened here: the player claims them in the Chest tab.
+              await sb.from("chest_grants").insert({
+                username: req.username,
+                item_key: req.item_key,
+                item_label: req.item_label,
+                reward_meta: (item.rewardMeta ?? {}) as Record<string, any>,
+              });
+            } else if (req.item_key === "golden_star") {
               newGolden = newGolden + 1;
             } else if (req.item_key === "chance_1") {
               newGaveUp = Math.max(0, newGaveUp - 1);
             } else if (req.item_key === "chance_2") {
               newGaveUp = Math.max(0, newGaveUp - 2);
-            } else if (item?.kind === "chest") {
-              const meta = (item.rewardMeta ?? {}) as Record<string, any>;
-              const min = Math.max(0, Math.floor((meta.minStars as number) ?? 1));
-              const max = Math.max(min, Math.floor((meta.maxStars as number) ?? min + 5));
-              const rolledStars = min + Math.floor(Math.random() * (max - min + 1));
-              let rolledGolden = Math.max(0, Math.floor((meta.guaranteedGolden as number) ?? 0));
-              if (typeof meta.goldenChance === "number" && Math.random() < meta.goldenChance)
-                rolledGolden += 1;
-              newStars += rolledStars;
-              newGolden += rolledGolden;
-              chestReward = { stars: rolledStars, golden: rolledGolden };
             } else if (item?.kind === "chance") {
               const remove = Math.max(
                 1,
@@ -755,6 +764,7 @@ export const decidePurchase = createServerFn({ method: "POST" })
             } else if (!titles.includes(req.item_label)) {
               titles = [...titles, req.item_label];
             }
+
 
             const { error: upErr } = await sb
               .from("app_users")
@@ -777,11 +787,14 @@ export const decidePurchase = createServerFn({ method: "POST" })
           if (!sErr) return { ok: true, chestReward };
         }
       } catch (err: unknown) {
+        const msg =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "";
         if (
-          err &&
-          typeof err === "object" &&
-          "message" in err &&
-          String((err as { message: unknown }).message).includes("Already decided")
+          msg.includes("Already decided") ||
+          msg.includes("no longer has enough") ||
+          msg.includes("already owns this title")
         )
           throw err;
       }
@@ -799,27 +812,37 @@ export const decidePurchase = createServerFn({ method: "POST" })
         let newGaveUp = user.gave_up;
         let titles: string[] = user.titles || [];
 
-        if (req.currency === "stars") newStars = user.stars - req.cost;
-        else newGolden = user.golden_stars - req.cost;
-
         const item = await findAnyItem(req.item_key);
-        if (req.item_key === "golden_star") {
+
+        if (req.currency === "stars" && user.stars < req.cost)
+          throw new Error("Player no longer has enough stars for this item");
+        if (req.currency === "golden" && user.golden_stars < req.cost)
+          throw new Error("Player no longer has enough golden stars for this item");
+        if (item?.kind === "title" && titles.includes(req.item_label))
+          throw new Error("Player already owns this title");
+
+        if (req.currency === "stars") newStars = Math.max(0, user.stars - req.cost);
+        else newGolden = Math.max(0, user.golden_stars - req.cost);
+
+        if (item?.kind === "chest") {
+          mockChestGrants.push({
+            id: crypto.randomUUID(),
+            username: req.username,
+            item_key: req.item_key,
+            item_label: req.item_label,
+            reward_meta: (item.rewardMeta ?? {}) as Record<string, any>,
+            opened: false,
+            stars_awarded: 0,
+            golden_awarded: 0,
+            created_at: new Date().toISOString(),
+            opened_at: null,
+          });
+        } else if (req.item_key === "golden_star") {
           newGolden += 1;
         } else if (req.item_key === "chance_1") {
           newGaveUp = Math.max(0, newGaveUp - 1);
         } else if (req.item_key === "chance_2") {
           newGaveUp = Math.max(0, newGaveUp - 2);
-        } else if (item?.kind === "chest") {
-          const meta = (item.rewardMeta ?? {}) as Record<string, any>;
-          const min = Math.max(0, Math.floor((meta.minStars as number) ?? 1));
-          const max = Math.max(min, Math.floor((meta.maxStars as number) ?? min + 5));
-          const rolledStars = min + Math.floor(Math.random() * (max - min + 1));
-          let rolledGolden = Math.max(0, Math.floor((meta.guaranteedGolden as number) ?? 0));
-          if (typeof meta.goldenChance === "number" && Math.random() < meta.goldenChance)
-            rolledGolden += 1;
-          newStars += rolledStars;
-          newGolden += rolledGolden;
-          chestReward = { stars: rolledStars, golden: rolledGolden };
         } else if (item?.kind === "chance") {
           const remove = Math.max(1, Math.floor((item.rewardMeta?.removeGaveUp as number) ?? 1));
           newGaveUp = Math.max(0, newGaveUp - remove);
@@ -828,6 +851,7 @@ export const decidePurchase = createServerFn({ method: "POST" })
         } else if (!titles.includes(req.item_label)) {
           titles = [...titles, req.item_label];
         }
+
 
         user.stars = newStars;
         user.golden_stars = newGolden;
@@ -840,6 +864,123 @@ export const decidePurchase = createServerFn({ method: "POST" })
 
     req.status = data.accept ? "accepted" : "denied";
     return { ok: true, chestReward };
+  });
+
+// ---------- Purchased chest grants (claimed by the player) ----------
+
+export type ChestGrant = {
+  id: string;
+  username: string;
+  item_key: string;
+  item_label: string;
+  reward_meta: Record<string, any>;
+  opened: boolean;
+  stars_awarded: number;
+  golden_awarded: number;
+  created_at: string;
+  opened_at: string | null;
+};
+
+export const listChestGrants = createServerFn({ method: "POST" })
+  .inputValidator((d: { username: string; token: string }) =>
+    z.object({ username: z.string(), token: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    await assertPlayer(data.username, data.token);
+    const sb = await admin();
+    if (sb) {
+      try {
+        const { data: rows, error } = await sb
+          .from("chest_grants")
+          .select("*")
+          .eq("username", data.username)
+          .order("created_at", { ascending: false });
+        if (!error && rows) return rows as unknown as ChestGrant[];
+      } catch {
+        /* ignore */
+      }
+    }
+    return mockChestGrants.filter((g) => g.username === data.username) as ChestGrant[];
+  });
+
+export const openChestGrant = createServerFn({ method: "POST" })
+  .inputValidator((d: { username: string; token: string; id: string }) =>
+    z.object({ username: z.string(), token: z.string().uuid(), id: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const user = await assertPlayer(data.username, data.token);
+
+    function roll(meta: Record<string, any>) {
+      const min = Math.max(0, Math.floor((meta.minStars as number) ?? 1));
+      const max = Math.max(min, Math.floor((meta.maxStars as number) ?? min + 5));
+      const stars = min + Math.floor(Math.random() * (max - min + 1));
+      let golden = Math.max(0, Math.floor((meta.guaranteedGolden as number) ?? 0));
+      if (typeof meta.goldenChance === "number" && Math.random() < meta.goldenChance) golden += 1;
+      return { stars, golden };
+    }
+
+    const sb = await admin();
+    if (sb) {
+      try {
+        const { data: grant, error } = await sb
+          .from("chest_grants")
+          .select("*")
+          .eq("id", data.id)
+          .eq("username", data.username)
+          .maybeSingle();
+        if (error || !grant) throw new Error("Chest not found");
+        if (grant.opened) throw new Error("Chest already opened");
+
+        const reward = roll((grant.reward_meta ?? {}) as Record<string, any>);
+        const newStars = user.stars + reward.stars;
+        const newGolden = user.golden_stars + reward.golden;
+
+        const { error: upErr } = await sb
+          .from("app_users")
+          .update({
+            stars: newStars,
+            golden_stars: newGolden,
+            xp: totalXp(newStars, user.xp_bonus || 0),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("username", data.username);
+        if (upErr) throw upErr;
+
+        await sb
+          .from("chest_grants")
+          .update({
+            opened: true,
+            stars_awarded: reward.stars,
+            golden_awarded: reward.golden,
+            opened_at: new Date().toISOString(),
+          })
+          .eq("id", data.id);
+
+        return reward;
+      } catch (err: unknown) {
+        const msg =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "";
+        if (msg.includes("Chest")) throw err;
+      }
+    }
+
+    const grant = mockChestGrants.find(
+      (g) => g.id === data.id && g.username === data.username,
+    );
+    if (!grant) throw new Error("Chest not found");
+    if (grant.opened) throw new Error("Chest already opened");
+    const reward = roll(grant.reward_meta ?? {});
+    grant.opened = true;
+    grant.stars_awarded = reward.stars;
+    grant.golden_awarded = reward.golden;
+    grant.opened_at = new Date().toISOString();
+    user.stars += reward.stars;
+    user.golden_stars += reward.golden;
+    user.xp = totalXp(user.stars, user.xp_bonus || 0);
+    user.updated_at = new Date().toISOString();
+    return reward;
   });
 
 // ---------- Daily chest ----------
@@ -861,8 +1002,8 @@ export const claimDailyChest = createServerFn({ method: "POST" })
           .eq("claim_date", today)
           .maybeSingle();
         if (existing) throw new Error("Already claimed today");
-        const isGolden = Math.random() < 0.05;
-        const stars = isGolden ? 0 : 1 + Math.floor(Math.random() * 5);
+        const isGolden = Math.random() < 0.01;
+        const stars = isGolden ? 0 : 1 + Math.floor(Math.random() * 2);
         const golden = isGolden ? 1 : 0;
         const newStars = user.stars + stars;
         const newGolden = user.golden_stars + golden;
@@ -904,8 +1045,8 @@ export const claimDailyChest = createServerFn({ method: "POST" })
     if (existingClaim) throw new Error("Already claimed today");
 
     await touchUserStreak(user, null);
-    const isGolden = Math.random() < 0.05;
-    const stars = isGolden ? 0 : 1 + Math.floor(Math.random() * 5);
+    const isGolden = Math.random() < 0.01;
+    const stars = isGolden ? 0 : 1 + Math.floor(Math.random() * 2);
     const golden = isGolden ? 1 : 0;
     user.stars += stars;
     user.golden_stars += golden;
@@ -976,8 +1117,9 @@ export const submitQuiz = createServerFn({ method: "POST" })
     quiz.forEach((q, i) => {
       if (data.answers[i] === q.answer) correct++;
     });
-    const stars = correct * 2;
-    const xpGain = correct * 15;
+    // Hard mode: stars only for every 3rd correct answer, XP heavily reduced.
+    const stars = Math.floor(correct / 3);
+    const xpGain = correct * 3;
 
     if (sb) {
       try {
@@ -1095,9 +1237,10 @@ export const submitMarathon = createServerFn({ method: "POST" })
     marathon.forEach((q, i) => {
       if (data.answers[i] === q.answer) correct++;
     });
-    const stars = correct;
-    const xpGain = correct * 25;
-    const perfectBonus = correct === marathon.length ? 100 : 0;
+    // Hard mode: marathon stars only every 4th correct answer.
+    const stars = Math.floor(correct / 4);
+    const xpGain = correct * 5;
+    const perfectBonus = correct === marathon.length ? 25 : 0;
     const totalXpGain = xpGain + perfectBonus;
 
     if (sb) {
@@ -1978,13 +2121,41 @@ export const sendNewsReview = createServerFn({ method: "POST" })
       throw new Error("Not authorized");
     }
 
+    // A player may rate a news post only once (extra messages are allowed without a rating).
+    let rating = data.rating ?? null;
+    if (rating !== null && !isOwner) {
+      const sbCheck = await admin();
+      let alreadyRated = false;
+      if (sbCheck) {
+        try {
+          const { data: prev } = await sbCheck
+            .from("news_reviews")
+            .select("id")
+            .eq("news_id", data.newsId)
+            .eq("username", senderName)
+            .not("rating", "is", null)
+            .limit(1);
+          alreadyRated = Boolean(prev && prev.length > 0);
+        } catch {
+          /* ignore */
+        }
+      } else {
+        alreadyRated = mockNewsReviews.some(
+          (r) => r.news_id === data.newsId && r.username === senderName && r.rating != null,
+        );
+      }
+      if (alreadyRated) throw new Error("You already rated this news");
+      rating = data.rating ?? null;
+    }
+
+
     const review: NewsReview = {
       id: crypto.randomUUID(),
       news_id: data.newsId,
       username: senderName,
       is_owner: isOwner,
       message: data.message,
-      rating: data.rating ?? null,
+      rating,
       created_at: new Date().toISOString(),
     };
 

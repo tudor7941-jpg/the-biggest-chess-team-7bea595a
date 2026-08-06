@@ -98,6 +98,45 @@ export type Database = {
         }
         Relationships: []
       }
+      chest_grants: {
+        Row: {
+          created_at: string
+          golden_awarded: number
+          id: string
+          item_key: string
+          item_label: string
+          opened: boolean
+          opened_at: string | null
+          reward_meta: Json
+          stars_awarded: number
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          golden_awarded?: number
+          id?: string
+          item_key: string
+          item_label: string
+          opened?: boolean
+          opened_at?: string | null
+          reward_meta?: Json
+          stars_awarded?: number
+          username: string
+        }
+        Update: {
+          created_at?: string
+          golden_awarded?: number
+          id?: string
+          item_key?: string
+          item_label?: string
+          opened?: boolean
+          opened_at?: string | null
+          reward_meta?: Json
+          stars_awarded?: number
+          username?: string
+        }
+        Relationships: []
+      }
       daily_chest_claims: {
         Row: {
           claim_date: string
