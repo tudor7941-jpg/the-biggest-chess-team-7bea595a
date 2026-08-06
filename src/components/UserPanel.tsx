@@ -990,6 +990,7 @@ function ChestTab({
 
 
   return (
+    <div className="space-y-4">
     <div className="rounded-2xl border bg-card p-8 md:p-12 text-center shadow-2xl relative overflow-hidden">
       <div className="absolute -top-24 -left-24 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
