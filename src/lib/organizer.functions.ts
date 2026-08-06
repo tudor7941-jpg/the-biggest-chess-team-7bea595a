@@ -904,8 +904,8 @@ export const claimDailyChest = createServerFn({ method: "POST" })
     if (existingClaim) throw new Error("Already claimed today");
 
     await touchUserStreak(user, null);
-    const isGolden = Math.random() < 0.05;
-    const stars = isGolden ? 0 : 1 + Math.floor(Math.random() * 5);
+    const isGolden = Math.random() < 0.01;
+    const stars = isGolden ? 0 : 1 + Math.floor(Math.random() * 2);
     const golden = isGolden ? 1 : 0;
     user.stars += stars;
     user.golden_stars += golden;
