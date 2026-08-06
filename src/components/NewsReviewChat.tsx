@@ -175,22 +175,30 @@ export function NewsReviewChat({
 
       <div className="space-y-2 border-t pt-4">
         <div className="flex items-center gap-1">
-          <span className="mr-1 text-xs font-semibold text-muted-foreground">Your rating:</span>
+          <span className="mr-1 text-xs font-semibold text-muted-foreground">
+            {alreadyRated ? "You rated this news:" : "Your rating:"}
+          </span>
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
-              title={`Rate ${n} / 5`}
+              disabled={alreadyRated}
+              title={alreadyRated ? "You can rate a news post only once" : `Rate ${n} / 5`}
               onClick={() => setRating(rating === n ? 0 : n)}
-              className="transition-transform hover:scale-125"
+              className="transition-transform enabled:hover:scale-125 disabled:cursor-not-allowed"
             >
               <Star
                 className={`h-4 w-4 ${
-                  n <= rating ? "fill-amber-500 text-amber-500" : "text-muted-foreground"
+                  n <= (alreadyRated ? (myRating ?? 0) : rating)
+                    ? "fill-amber-500 text-amber-500"
+                    : "text-muted-foreground"
                 }`}
               />
             </button>
           ))}
+          {alreadyRated && (
+            <span className="ml-1 text-[11px] text-muted-foreground">(only once)</span>
+          )}
         </div>
         <div className="flex gap-2">
           <input
