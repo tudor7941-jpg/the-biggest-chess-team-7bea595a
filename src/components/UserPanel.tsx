@@ -19,6 +19,8 @@ import {
   listNews,
   submitSuggestion,
   listMySuggestions,
+  listChestGrants,
+  openChestGrant,
   type Suggestion,
 } from "@/lib/organizer.functions";
 import { AnimatedBackground } from "./AnimatedBackground";
