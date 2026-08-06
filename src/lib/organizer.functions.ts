@@ -786,11 +786,14 @@ export const decidePurchase = createServerFn({ method: "POST" })
           if (!sErr) return { ok: true, chestReward };
         }
       } catch (err: unknown) {
+        const msg =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "";
         if (
-          err &&
-          typeof err === "object" &&
-          "message" in err &&
-          String((err as { message: unknown }).message).includes("Already decided")
+          msg.includes("Already decided") ||
+          msg.includes("no longer has enough") ||
+          msg.includes("already owns this title")
         )
           throw err;
       }
