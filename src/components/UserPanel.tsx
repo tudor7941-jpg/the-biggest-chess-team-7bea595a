@@ -1117,6 +1117,121 @@ function ChestTab({
         )}
       </div>
     </div>
+
+    <PurchasedChests grants={grants} onOpenGrant={onOpenGrant} />
+    </div>
+  );
+}
+
+type ChestGrantRow = {
+  id: string;
+  item_key: string;
+  item_label: string;
+  opened: boolean;
+  stars_awarded: number;
+  golden_awarded: number;
+  created_at: string;
+};
+
+function PurchasedChests({
+  grants,
+  onOpenGrant,
+}: {
+  grants: ChestGrantRow[];
+  onOpenGrant?: (id: string) => Promise<{ stars: number; golden: number } | null>;
+}) {
+  const [openingId, setOpeningId] = useState<string | null>(null);
+  const [reveal, setReveal] = useState<Record<string, { stars: number; golden: number }>>({});
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const unopened = grants.filter((g) => !g.opened);
+  const opened = grants.filter((g) => g.opened);
+
+  async function open(id: string) {
+    if (openingId || !onOpenGrant) return;
+    setOpeningId(id);
+    playChestFanfare();
+    let result: { stars: number; golden: number } | null = null;
+    try {
+      result = await onOpenGrant(id);
+    } catch {
+      result = null;
+    }
+    await new Promise<void>((res) => {
+      timerRef.current = setTimeout(() => res(), 1600);
+    });
+    if (result) setReveal((prev) => ({ ...prev, [id]: result! }));
+    setOpeningId(null);
+  }
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 shadow-lg">
+      <h3 className="mb-1 text-xl font-extrabold">Your purchased chests</h3>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Chests you bought in the Shop appear here once the owner accepts the request. Open them
+        whenever you want!
+      </p>
+
+      {unopened.length === 0 && (
+        <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+          No chests waiting. Buy one in the Shop tab!
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {unopened.map((g) => (
+          <div
+            key={g.id}
+            className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center"
+          >
+            <div
+              className={`mx-auto mb-2 text-5xl ${openingId === g.id ? "chest-shaking" : "chest-idle"}`}
+            >
+              🎁
+            </div>
+            <p className="text-sm font-bold">{g.item_label}</p>
+            <button
+              onClick={() => open(g.id)}
+              disabled={Boolean(openingId)}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-primary px-4 py-2 text-sm font-extrabold text-primary-foreground transition-transform hover:scale-105 disabled:opacity-50"
+            >
+              <Sparkles className="h-4 w-4" />
+              {openingId === g.id ? "Opening…" : "Open chest"}
+            </button>
+            {reveal[g.id] && (
+              <p className="mt-2 text-xs font-bold text-amber-500">
+                +{reveal[g.id]!.stars} stars
+                {reveal[g.id]!.golden > 0 ? ` · +${reveal[g.id]!.golden} golden` : ""}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {opened.length > 0 && (
+        <div className="mt-5 border-t pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Already opened
+          </p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            {opened.slice(0, 8).map((g) => (
+              <li key={g.id} className="flex items-center justify-between gap-2">
+                <span className="truncate">{g.item_label}</span>
+                <span className="shrink-0 font-semibold text-amber-500">
+                  +{g.stars_awarded}★{g.golden_awarded > 0 ? ` · +${g.golden_awarded}✨` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
