@@ -911,10 +911,14 @@ function ChestTab({
   claim,
   onClaim,
   userStreak = 1,
+  grants = [],
+  onOpenGrant,
 }: {
   claim: { stars_awarded: number; golden_awarded: number } | null | unknown;
   onClaim: () => Promise<{ stars: number; golden: number; streak?: number } | null>;
   userStreak?: number;
+  grants?: ChestGrantRow[];
+  onOpenGrant?: (id: string) => Promise<{ stars: number; golden: number } | null>;
 }) {
   const [state, setState] = useState<"idle" | "shaking" | "open" | "claimed">("idle");
   const [reward, setReward] = useState<{ stars: number; golden: number; streak?: number } | null>(
