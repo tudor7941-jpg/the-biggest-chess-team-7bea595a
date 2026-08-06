@@ -158,6 +158,8 @@ export function UserPanel({
   const fetchNews = useServerFn(listNews);
   const sendSugg = useServerFn(submitSuggestion);
   const fetchMySugg = useServerFn(listMySuggestions);
+  const fetchChestGrants = useServerFn(listChestGrants);
+  const doOpenGrant = useServerFn(openChestGrant);
 
   const [me, setMe] = useState<User | null>(null);
   const [everyone, setEveryone] = useState<User[]>([]);
@@ -171,10 +173,11 @@ export function UserPanel({
   const [marathonDone, setMarathonDone] = useState<unknown>(null);
   const [news, setNews] = useState<NewsPost[]>([]);
   const [mySuggestions, setMySuggestions] = useState<Suggestion[]>([]);
+  const [chestGrants, setChestGrants] = useState<ChestGrantRow[]>([]);
 
   const refresh = useCallback(async () => {
     try {
-      const [u, list, mine, cs, qs, qq, ci, mq, ms, nw, sg] = await Promise.all([
+      const [u, list, mine, cs, qs, qq, ci, mq, ms, nw, sg, cg] = await Promise.all([
         fetchMe({ data: { username, token } }),
         fetchAll(),
         fetchMyPurchases({ data: { username, token } }),
@@ -186,6 +189,7 @@ export function UserPanel({
         marathonStatus({ data: { username, token } }),
         fetchNews(),
         fetchMySugg({ data: { username, token } }),
+        fetchChestGrants({ data: { username, token } }),
       ]);
       setMe(u as User);
       setEveryone(list as User[]);
@@ -198,6 +202,7 @@ export function UserPanel({
       setMarathonDone(ms);
       setNews(nw as NewsPost[]);
       setMySuggestions(sg as Suggestion[]);
+      setChestGrants(cg as unknown as ChestGrantRow[]);
     } catch (e: unknown) {
       console.error(e);
       if (
