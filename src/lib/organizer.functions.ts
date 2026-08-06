@@ -976,8 +976,9 @@ export const submitQuiz = createServerFn({ method: "POST" })
     quiz.forEach((q, i) => {
       if (data.answers[i] === q.answer) correct++;
     });
-    const stars = correct * 2;
-    const xpGain = correct * 15;
+    // Hard mode: stars only for every 3rd correct answer, XP heavily reduced.
+    const stars = Math.floor(correct / 3);
+    const xpGain = correct * 3;
 
     if (sb) {
       try {
