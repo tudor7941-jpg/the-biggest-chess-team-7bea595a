@@ -861,8 +861,8 @@ export const claimDailyChest = createServerFn({ method: "POST" })
           .eq("claim_date", today)
           .maybeSingle();
         if (existing) throw new Error("Already claimed today");
-        const isGolden = Math.random() < 0.05;
-        const stars = isGolden ? 0 : 1 + Math.floor(Math.random() * 5);
+        const isGolden = Math.random() < 0.01;
+        const stars = isGolden ? 0 : 1 + Math.floor(Math.random() * 2);
         const golden = isGolden ? 1 : 0;
         const newStars = user.stars + stars;
         const newGolden = user.golden_stars + golden;
