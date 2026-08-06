@@ -58,7 +58,7 @@ export function NewsReviewChat({
           newsId,
           ...(password ? { password } : { username, token }),
           message: msg,
-          ...(rating > 0 ? { rating } : {}),
+          ...(rating > 0 && !alreadyRated ? { rating } : {}),
         },
       });
       setText("");
