@@ -2121,6 +2121,34 @@ export const sendNewsReview = createServerFn({ method: "POST" })
       throw new Error("Not authorized");
     }
 
+    // A player may rate a news post only once (extra messages are allowed without a rating).
+    let rating = data.rating ?? null;
+    if (rating !== null && !isOwner) {
+      const sbCheck = await admin();
+      let alreadyRated = false;
+      if (sbCheck) {
+        try {
+          const { data: prev } = await sbCheck
+            .from("news_reviews")
+            .select("id")
+            .eq("news_id", data.newsId)
+            .eq("username", senderName)
+            .not("rating", "is", null)
+            .limit(1);
+          alreadyRated = Boolean(prev && prev.length > 0);
+        } catch {
+          /* ignore */
+        }
+      } else {
+        alreadyRated = mockNewsReviews.some(
+          (r) => r.news_id === data.newsId && r.username === senderName && r.rating != null,
+        );
+      }
+      if (alreadyRated) throw new Error("You already rated this news");
+      rating = data.rating ?? null;
+    }
+
+
     const review: NewsReview = {
       id: crypto.randomUUID(),
       news_id: data.newsId,
