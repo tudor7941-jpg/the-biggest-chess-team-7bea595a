@@ -2155,7 +2155,7 @@ export const sendNewsReview = createServerFn({ method: "POST" })
       username: senderName,
       is_owner: isOwner,
       message: data.message,
-      rating: data.rating ?? null,
+      rating,
       created_at: new Date().toISOString(),
     };
 
