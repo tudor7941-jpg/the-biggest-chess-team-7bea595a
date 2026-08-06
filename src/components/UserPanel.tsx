@@ -476,6 +476,17 @@ export function UserPanel({
                 return null;
               }
             }}
+            grants={chestGrants}
+            onOpenGrant={async (id) => {
+              try {
+                const r = await doOpenGrant({ data: { username, token, id } });
+                await refresh();
+                return r as { stars: number; golden: number };
+              } catch (e) {
+                alert((e as Error).message);
+                return null;
+              }
+            }}
           />
         )}
         {tab === "quiz" && (
