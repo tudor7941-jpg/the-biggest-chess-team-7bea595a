@@ -637,6 +637,8 @@ export const submitPurchase = createServerFn({ method: "POST" })
     if (item.currency === "stars" && user.stars < item.cost) throw new Error("Not enough stars");
     if (item.currency === "golden" && user.golden_stars < item.cost)
       throw new Error("Not enough golden stars");
+    if (item.kind === "title" && (user.titles || []).includes(item.label))
+      throw new Error("You already own this title");
 
     const sb = await admin();
     if (sb) {
