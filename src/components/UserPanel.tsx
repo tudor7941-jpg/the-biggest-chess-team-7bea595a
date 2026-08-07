@@ -1101,7 +1101,30 @@ function ChestTab({
           </div>
         )}
 
+        {state === "idle" && !isAlreadyClaimed && (
+          <div className="mt-8 space-y-3">
+            <button
+              onClick={handle}
+              className="relative inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-primary to-amber-600 px-8 py-4 text-base font-extrabold text-primary-foreground shadow-lg shadow-amber-500/25 hover:scale-105 active:scale-95 transition-all duration-200"
+            >
+              <Sparkles className="h-5 w-5 animate-spin-slow" />
+              <span>OPEN DAILY CHEST</span>
+            </button>
+            <p className="text-xs text-muted-foreground font-medium">
+              Claiming updates your daily streak!
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <PurchasedChests grants={grants} onOpenGrant={onOpenGrant} />
+    </div>
+  );
+}
+
 type ChestState = "idle" | "shaking" | "open" | "claimed";
+
 
 function ChestStage({ state }: { state: ChestState }) {
   const stateClass =
