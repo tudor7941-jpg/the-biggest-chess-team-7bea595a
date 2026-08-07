@@ -364,7 +364,8 @@
     transparent 348deg
   );
   animation: rays-spin 5s linear infinite;
-  filter: blur(1px);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 @keyframes rays-spin {
   to {
