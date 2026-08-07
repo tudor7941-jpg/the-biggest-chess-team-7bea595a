@@ -116,13 +116,13 @@
 
 @keyframes geo-float {
   0% {
-    transform: translate(0, 0) rotate(0deg) scale(1);
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
   }
   50% {
-    transform: translate(60px, -40px) rotate(180deg) scale(1.1);
+    transform: translate3d(60px, -40px, 0) rotate(180deg) scale(1.08);
   }
   100% {
-    transform: translate(0, 0) rotate(360deg) scale(1);
+    transform: translate3d(0, 0, 0) rotate(360deg) scale(1);
   }
 }
 
