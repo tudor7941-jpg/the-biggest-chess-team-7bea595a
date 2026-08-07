@@ -1057,26 +1057,8 @@ function ChestTab({
           </div>
         )}
 
-        <div className={`chest-stage mx-auto my-6 ${stateClass}`}>
-          {state === "open" && <div className="chest-rays" />}
-          {state === "open" && <div className="chest-open-burst" />}
-          {state === "open" && (
-            <div className="chest-sigma-star">
-              <Star className="h-20 w-20 fill-amber-400 text-amber-200 drop-shadow-[0_0_25px_rgba(251,191,36,0.9)] animate-bounce" />
-            </div>
-          )}
-          <div className="chest-body">
-            <div className="chest-lock" />
-          </div>
-          <div className="chest-lid" />
-          {state === "open" && (
-            <div className="chest-particles">
-              {Array.from({ length: 30 }).map((_, i) => (
-                <span key={i} className="chest-particle" />
-              ))}
-            </div>
-          )}
-        </div>
+        <ChestStage state={state} />
+
 
         {state === "open" && reward && (
           <div className="reward-pop mt-8 p-6 rounded-2xl border border-amber-500/40 bg-gradient-to-b from-amber-500/10 via-background to-secondary/40 animate-in fade-in zoom-in-75 duration-500 max-w-md mx-auto shadow-2xl space-y-4">
