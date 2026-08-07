@@ -69,9 +69,14 @@
   * {
     border-color: var(--color-border);
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeSpeed;
     font-family:
       ui-sans-serif,
       system-ui,
@@ -82,31 +87,33 @@
   }
 }
 
-/* Animated geometric background */
+/* Animated geometric background — transform-only, GPU composited */
 .geo-shape {
   position: absolute;
-  will-change: transform;
   animation-name: geo-float;
   animation-iteration-count: infinite;
   animation-timing-function: ease-in-out;
-  filter: blur(1px);
+  contain: layout style paint;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 .geo-shape.circle {
   border-radius: 9999px;
 }
 .geo-shape.square {
   border-radius: 12px;
-  transform: rotate(12deg);
 }
 .geo-shape.triangle {
   background: transparent !important;
   width: 0 !important;
   height: 0 !important;
+  contain: layout style;
   border-left: 60px solid transparent;
   border-right: 60px solid transparent;
   border-bottom: 100px solid var(--color-chart-2);
   opacity: 0.15;
 }
+
 @keyframes geo-float {
   0% {
     transform: translate(0, 0) rotate(0deg) scale(1);
