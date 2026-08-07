@@ -1101,25 +1101,38 @@ function ChestTab({
           </div>
         )}
 
-        {state === "idle" && !isAlreadyClaimed && (
-          <div className="mt-8 space-y-3">
-            <button
-              onClick={handle}
-              disabled={false}
-              className="relative inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-primary to-amber-600 px-8 py-4 text-base font-extrabold text-primary-foreground shadow-lg shadow-amber-500/25 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:hover:scale-100"
-            >
-              <Sparkles className="h-5 w-5 animate-spin-slow" />
-              <span>OPEN DAILY CHEST</span>
-            </button>
-            <p className="text-xs text-muted-foreground font-medium">
-              Claiming updates your daily streak!
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
+type ChestState = "idle" | "shaking" | "open" | "claimed";
 
-    <PurchasedChests grants={grants} onOpenGrant={onOpenGrant} />
+function ChestStage({ state }: { state: ChestState }) {
+  const stateClass =
+    state === "idle"
+      ? "chest-idle"
+      : state === "shaking"
+        ? "chest-shaking"
+        : state === "open"
+          ? "chest-open"
+          : "chest-claimed";
+
+  return (
+    <div className={`chest-stage mx-auto my-6 ${stateClass}`}>
+      {state === "open" && <div className="chest-rays" />}
+      {state === "open" && <div className="chest-open-burst" />}
+      {state === "open" && (
+        <div className="chest-sigma-star">
+          <Star className="h-20 w-20 fill-amber-400 text-amber-200 drop-shadow-[0_0_25px_rgba(251,191,36,0.9)] animate-bounce" />
+        </div>
+      )}
+      <div className="chest-body">
+        <div className="chest-lock" />
+      </div>
+      <div className="chest-lid" />
+      {state === "open" && (
+        <div className="chest-particles">
+          {Array.from({ length: 30 }).map((_, i) => (
+            <span key={i} className="chest-particle" />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1141,12 +1154,19 @@ function PurchasedChests({
   grants: ChestGrantRow[];
   onOpenGrant?: (id: string) => Promise<{ stars: number; golden: number } | null>;
 }) {
-  const [openingId, setOpeningId] = useState<string | null>(null);
-  const [reveal, setReveal] = useState<Record<string, { stars: number; golden: number }>>({});
+  const [active, setActive] = useState<{
+    id: string;
+    label: string;
+    state: ChestState;
+    reward: { stars: number; golden: number } | null;
+  } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aliveRef = useRef(true);
 
   useEffect(() => {
+    aliveRef.current = true;
     return () => {
+      aliveRef.current = false;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
@@ -1154,21 +1174,28 @@ function PurchasedChests({
   const unopened = grants.filter((g) => !g.opened);
   const opened = grants.filter((g) => g.opened);
 
-  async function open(id: string) {
-    if (openingId || !onOpenGrant) return;
-    setOpeningId(id);
+  async function open(g: ChestGrantRow) {
+    if (active || !onOpenGrant) return;
+    setActive({ id: g.id, label: g.item_label, state: "shaking", reward: null });
     playChestFanfare();
+
     let result: { stars: number; golden: number } | null = null;
+    let failed = false;
     try {
-      result = await onOpenGrant(id);
+      result = await onOpenGrant(g.id);
+      if (!result) failed = true;
     } catch {
-      result = null;
+      failed = true;
     }
-    await new Promise<void>((res) => {
-      timerRef.current = setTimeout(() => res(), 1600);
-    });
-    if (result) setReveal((prev) => ({ ...prev, [id]: result! }));
-    setOpeningId(null);
+
+    timerRef.current = setTimeout(() => {
+      if (!aliveRef.current) return;
+      if (failed || !result) {
+        setActive(null);
+        return;
+      }
+      setActive((prev) => (prev ? { ...prev, state: "open", reward: result } : prev));
+    }, 1600);
   }
 
   return (
@@ -1191,29 +1218,87 @@ function PurchasedChests({
             key={g.id}
             className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center"
           >
-            <div
-              className={`mx-auto mb-2 text-5xl ${openingId === g.id ? "chest-shaking" : "chest-idle"}`}
-            >
-              🎁
+            <div className="scale-[0.55] origin-center -my-6">
+              <ChestStage state="idle" />
             </div>
             <p className="text-sm font-bold">{g.item_label}</p>
             <button
-              onClick={() => open(g.id)}
-              disabled={Boolean(openingId)}
+              onClick={() => open(g)}
+              disabled={Boolean(active)}
               className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-primary px-4 py-2 text-sm font-extrabold text-primary-foreground transition-transform hover:scale-105 disabled:opacity-50"
             >
               <Sparkles className="h-4 w-4" />
-              {openingId === g.id ? "Opening…" : "Open chest"}
+              {active?.id === g.id ? "Opening…" : "Open chest"}
             </button>
-            {reveal[g.id] && (
-              <p className="mt-2 text-xs font-bold text-amber-500">
-                +{reveal[g.id]!.stars} stars
-                {reveal[g.id]!.golden > 0 ? ` · +${reveal[g.id]!.golden} golden` : ""}
-              </p>
-            )}
           </div>
         ))}
       </div>
+
+      {active && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-2xl overflow-hidden">
+            <div className="absolute -top-24 -left-24 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10">
+              <h3 className="text-2xl font-extrabold bg-gradient-to-r from-amber-400 via-primary to-amber-500 bg-clip-text text-transparent">
+                {active.label}
+              </h3>
+
+              <ChestStage state={active.state} />
+
+              {active.state === "open" && active.reward && (
+                <div className="reward-pop mt-6 p-6 rounded-2xl border border-amber-500/40 bg-gradient-to-b from-amber-500/10 via-background to-secondary/40 animate-in fade-in zoom-in-75 duration-500 shadow-2xl space-y-4">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/20 border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-400 uppercase tracking-widest">
+                    <Sparkles className="h-3.5 w-3.5" /> CHEST UNLOCKED!
+                  </div>
+                  <div className="flex justify-center items-center gap-6 py-2">
+                    {active.reward.stars > 0 && (
+                      <div className="flex flex-col items-center">
+                        <div className="text-3xl font-black text-amber-400 flex items-center gap-1">
+                          <Star className="h-8 w-8 text-amber-400 fill-amber-400" /> +
+                          {active.reward.stars}
+                        </div>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-1">
+                          Stars
+                        </span>
+                      </div>
+                    )}
+                    {active.reward.golden > 0 && (
+                      <div className="flex flex-col items-center">
+                        <div className="text-3xl font-black text-[var(--color-gold)] flex items-center gap-1">
+                          <Sparkles className="h-8 w-8 text-[var(--color-gold)] fill-[var(--color-gold)]" />{" "}
+                          +{active.reward.golden}
+                        </div>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-1">
+                          Golden Star
+                        </span>
+                      </div>
+                    )}
+                    {active.reward.stars === 0 && active.reward.golden === 0 && (
+                      <p className="text-sm font-bold text-muted-foreground">Empty chest… ouch!</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setActive(null)}
+                    className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-primary px-4 py-2.5 text-sm font-extrabold text-primary-foreground hover:scale-[1.02] transition-transform"
+                  >
+                    Awesome!
+                  </button>
+                </div>
+              )}
+
+              {active.state === "shaking" && (
+                <p className="mt-4 text-sm font-semibold text-muted-foreground animate-pulse">
+                  Opening…
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
       {opened.length > 0 && (
         <div className="mt-5 border-t pt-4">
