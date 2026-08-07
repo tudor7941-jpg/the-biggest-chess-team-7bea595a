@@ -998,14 +998,7 @@ function ChestTab({
     }, 1600);
   }
 
-  const stateClass =
-    state === "idle"
-      ? "chest-idle"
-      : state === "shaking"
-        ? "chest-shaking"
-        : state === "open"
-          ? "chest-open"
-          : "chest-claimed";
+
 
 
   return (
