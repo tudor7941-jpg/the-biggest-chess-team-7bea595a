@@ -722,3 +722,38 @@
 .animate-spin-slow {
   animation: spin-slow 10s linear infinite;
 }
+
+/* ================================================================
+   PERFORMANCE / SMOOTHNESS
+   ================================================================ */
+.chest-open .chest-particle,
+.chest-open-burst,
+.chest-sigma-star,
+.chest-rays {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+.chest-stage {
+  contain: layout paint;
+}
+.xp-road-fill {
+  will-change: width;
+}
+
+/* Smooth, cheap interactive feedback */
+button,
+[role="tab"],
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
